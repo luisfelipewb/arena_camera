@@ -44,15 +44,6 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 
-#include <camera_control_msgs/SetBool.h>
-#include <camera_control_msgs/SetBinning.h>
-#include <camera_control_msgs/SetBrightness.h>
-#include <camera_control_msgs/SetExposure.h>
-#include <camera_control_msgs/SetGain.h>
-#include <camera_control_msgs/SetGamma.h>
-#include <camera_control_msgs/SetROI.h>
-#include <camera_control_msgs/SetSleeping.h>
-#include <camera_control_msgs/GrabImagesAction.h>
  
 #include <actionlib/server/simple_action_server.h>
 #include <camera_info_manager/camera_info_manager.h>
@@ -67,7 +58,6 @@
 
 namespace arena_camera
 {
-typedef actionlib::SimpleActionServer<camera_control_msgs::GrabImagesAction> GrabImagesAS;
 
 /**
 * The ROS-node of the arena_camera interface
@@ -176,23 +166,6 @@ protected:
   */
   bool setBinningY(const size_t& target_binning_y, size_t& reached_binning_y);
 
-  /**
-  * Service callback for updating the cameras binning setting
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setBinningCallback(camera_control_msgs::SetBinning::Request& req,
-                          camera_control_msgs::SetBinning::Response& res);
-
-  /**
-  * Service callback for updating the cameras roi setting
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setROICallback(camera_control_msgs::SetROI::Request& req, camera_control_msgs::SetROI::Response& res);
-
   bool setExposureValue(const float& target_exposure, float& reached_exposure);
 
   /**
@@ -203,14 +176,6 @@ protected:
   */
   bool setExposure(const float& target_exposure, float& reached_exposure);
 
-  /**
-  * Service callback for setting the exposure
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setExposureCallback(camera_control_msgs::SetExposure::Request& req,
-                           camera_control_msgs::SetExposure::Response& res);
 
   /**
   * Sets the target brightness which is the intensity-mean over all pixels.
@@ -229,14 +194,6 @@ protected:
   bool setBrightness(const int& target_brightness, int& reached_brightness, const bool& exposure_auto,
                      const bool& gain_auto);
 
-  /**
-  * Service callback for setting the brightness
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setBrightnessCallback(camera_control_msgs::SetBrightness::Request& req,
-                             camera_control_msgs::SetBrightness::Response& res);
 
   bool setGainValue(const float& target_gain, float& reached_gain);
 
@@ -248,14 +205,6 @@ protected:
   */
   bool setGain(const float& target_gain, float& reached_gain);
 
-  /**
-  * Service callback for setting the desired gain in percent
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setGainCallback(camera_control_msgs::SetGain::Request& req, camera_control_msgs::SetGain::Response& res);
-
   bool setGammaValue(const float& target_gamma, float& reached_gamma);
 
   /**
@@ -266,22 +215,6 @@ protected:
   */
   bool setGamma(const float& target_gamma, float& reached_gamma);
 
-  /**
-  * Service callback for setting the desired gamma correction value
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setGammaCallback(camera_control_msgs::SetGamma::Request& req, camera_control_msgs::SetGamma::Response& res);
-
-  /**
-  * Callback that puts the camera to sleep
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setSleepingCallback(camera_control_msgs::SetSleeping::Request& req,
-                           camera_control_msgs::SetSleeping::Response& res);
 
   /**
   * Returns true if the camera was put into sleep mode
@@ -289,15 +222,6 @@ protected:
   */
   bool isSleeping();
 
-  /**
-  * Generates the subset of points on which the brightness search will be
-  * executed in order to speed it up. The subset are the indices of the
-  * one-dimensional image_raw data vector. The base generation is done in a
-  * recursive manner, by calling genSamplingIndicesRec
-  * @return indices describing the subset of points
-  */
-  void setupSamplingIndices(std::vector<std::size_t>& indices, std::size_t rows, std::size_t cols,
-                            int downsampling_factor);
 
   /**
   * This function will recursively be called from above setupSamplingIndices()
@@ -313,46 +237,9 @@ protected:
   */
   float calcCurrentBrightness();
 
-  /**
-  * Callback for the grab images action
-  * @param goal the goal
-  */
-  void grabImagesRawActionExecuteCB(const camera_control_msgs::GrabImagesGoal::ConstPtr& goal);
-
-  /**
-  * Callback for the grab rectified images action
-  * @param goal the goal
-  */
-  void grabImagesRectActionExecuteCB(const camera_control_msgs::GrabImagesGoal::ConstPtr& goal);
-  
-  /**
-  * This function can also be called from the derived ArenaCameraOpenCV-Class
-  */
-  camera_control_msgs::GrabImagesResult grabImagesRaw(const camera_control_msgs::GrabImagesGoal::ConstPtr& goal,
-                                                      GrabImagesAS* action_server);
 
   void initCalibrationMatrices(sensor_msgs::CameraInfo& info, const cv::Mat& D, const cv::Mat& K);
 
-  /**
-  * Callback that sets the digital user output
-  * @param output_id the ID of the user output to set
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setUserOutputCB(int output_id, camera_control_msgs::SetBool::Request& req,
-                       camera_control_msgs::SetBool::Response& res);
-
-  /**
-  * Callback that activates the digital user output to
-  be used as autoflash
-  * @param output_id the ID of the user output to set
-  * @param req request
-  * @param res response
-  * @return true on success
-  */
-  bool setAutoflash(const int output_id, camera_control_msgs::SetBool::Request& req,
-                    camera_control_msgs::SetBool::Response& res);
 
   ros::NodeHandle nh_;
   ArenaCameraParameter arena_camera_parameter_set_;
@@ -372,9 +259,6 @@ protected:
 
   ros::Publisher* img_rect_pub_;
   image_geometry::PinholeCameraModel* pinhole_model_;
-
-  GrabImagesAS grab_imgs_raw_as_;
-  GrabImagesAS* grab_imgs_rect_as_;
 
   sensor_msgs::Image img_raw_msg_;
   cv_bridge::CvImage* cv_bridge_img_rect_;
