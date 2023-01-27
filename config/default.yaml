@@ -21,6 +21,7 @@ camera_info_url: ""
 #  'bayer_gbrg8' and 'bayer_rggb8'
 #  Default values are 'mono8' and 'rgb8'
 # image_encoding: "mono8"
+image_encoding: "bayer_rggb8"
 
 #  Binning factor to get downsampled images. It refers here to any camera
 #  setting which combines rectangular neighborhoods of pixels into larger
@@ -34,12 +35,12 @@ camera_info_url: ""
 #  The desired publisher frame rate if listening to the topics.
 #  This parameter can only be set once at startup
 #  Calling the GrabImages-Action can result in a higher framerate
-frame_rate: 5.0
+frame_rate: 10.0
 
 #  Mode of camera's shutter.
 #  The supported modes are "rolling", "global" and "global_reset"
 #  Default value is "" (empty) means default_shutter_mode
-#shutter_mode: ""
+shutter_mode: "global"
 
 ##########################################################################
 ######################## Image Intensity Settings ########################

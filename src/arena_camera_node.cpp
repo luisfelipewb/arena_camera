@@ -588,6 +588,22 @@ bool ArenaCameraNode::startGrabbing()
     // 	}
     // }
 
+    // Configuring StreamPacketResendEnable significantly improves performance
+    // TODO: Cleanup
+    GenICam::gcstring triggerSelectorInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerSelector");
+    GenICam::gcstring triggerModeInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerMode");
+    GenICam::gcstring triggerSourceInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerSource");
+
+    ROS_INFO_STREAM( "Initial stream configuration" << std::endl
+                    << "\ttriggerSelectorInitial: " << triggerSelectorInitial << std::endl
+                    << "\ttriggerModeInitial: " << triggerModeInitial << std::endl
+                    << "\ttriggerSourceInitial: " << triggerSourceInitial << std::endl);
+
+    // enable stream auto negotiate packet size
+	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamAutoNegotiatePacketSize", true);
+	  // enable stream packet resend
+	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamPacketResendEnable", true);
+    // TODO: Confirm if necessary
     Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetTLStreamNodeMap(), "StreamBufferHandlingMode", "NewestOnly");
 
     //
@@ -1611,16 +1627,17 @@ bool ArenaCameraNode::setGamma(const float& target_gamma, float& reached_gamma)
   return true;
 }
 
-bool ArenaCameraNode::setGammaCallback(camera_control_msgs::SetGamma::Request& req,
-                                       camera_control_msgs::SetGamma::Response& res)
-{
-  res.success = setGamma(req.target_gamma, res.reached_gamma);
-  return true;
-}
 
 bool ArenaCameraNode::setBrightness(const int& target_brightness, int& reached_brightness, const bool& exposure_auto,
                                     const bool& gain_auto)
 {
+  // Original implementation was crashing.
+  // TODO: clenaup
+  Arena::SetNodeValue<int64_t>(pDevice_->GetNodeMap(), "TargetBrightness", target_brightness);
+  ROS_INFO_STREAM("WOLF setBrightness: " << target_brightness);
+  // double exposureTime = Arena::GetNodeValue<double>(pDevice_->GetNodeMap(), "ExposureTime");
+  return true;
+
   boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
   ros::Time begin = ros::Time::now();  // time measurement for the exposure search
 
