@@ -40,19 +40,13 @@
 #include <ros/ros.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/image_encodings.h>
-
-#include <diagnostic_updater/diagnostic_updater.h>
-#include <diagnostic_updater/publisher.h>
-
  
-#include <actionlib/server/simple_action_server.h>
 #include <camera_info_manager/camera_info_manager.h>
 #include <image_geometry/pinhole_camera_model.h>
 #include <image_transport/image_transport.h>
 #include <cv_bridge/cv_bridge.h>
 
 // Arena
-#include <ArenaApi.h>
 #include <arena_camera/arena_camera.h>
 #include <arena_camera/arena_camera_parameter.h>
 
@@ -148,24 +142,6 @@ protected:
   */
   bool setROI(const sensor_msgs::RegionOfInterest target_roi, sensor_msgs::RegionOfInterest& reached_roi);
 
-  /**
-  * Update the horizontal binning_x factor to get downsampled images
-  * @param target_binning_x the target horizontal binning_x factor
-  * @param reached_binning_x the horizontal binning_x factor that could be
-  *        reached
-  * @return true if the targeted binning could be reached
-  */
-  bool setBinningX(const size_t& target_binning_x, size_t& reached_binning_x);
-
-  /**
-  * Update the vertical binning_y factor to get downsampled images
-  * @param target_binning_y the target vertical binning_y factor
-  * @param reached_binning_y the vertical binning_y factor that could be
-  *        reached
-  * @return true if the targeted binning could be reached
-  */
-  bool setBinningY(const size_t& target_binning_y, size_t& reached_binning_y);
-
   bool setExposureValue(const float& target_exposure, float& reached_exposure);
 
   /**
@@ -184,37 +160,16 @@ protected:
   * The Auto function of the Arena-API supports values from [50 - 205].
   * Using a binary search, this range will be extended up to [1 - 255].
   * @param target_brightness is the desired brightness. Range is [1...255].
-  * @param current_brightness is the current brightness with the given settings.
-  * @param exposure_auto flag which indicates if the target_brightness
-  *                      should be reached adapting the exposure time
-  * @param gain_auto flag which indicates if the target_brightness should be
-  *                      reached adapting the gain.
   * @return true if the brightness could be reached or false otherwise.
   */
-  bool setBrightness(const int& target_brightness, int& reached_brightness, const bool& exposure_auto,
-                     const bool& gain_auto);
-
-
-  bool setGainValue(const float& target_gain, float& reached_gain);
+  bool setBrightness(const int& target_brightness);
 
   /**
   * Update the gain from the camera to a target gain in percent
   * @param target_gain the targeted gain in percent
-  * @param reached_gain the gain that could be reached
   * @return true if the targeted gain could be reached
   */
-  bool setGain(const float& target_gain, float& reached_gain);
-
-  bool setGammaValue(const float& target_gamma, float& reached_gamma);
-
-  /**
-  * Update the gamma from the camera to a target gamma correction value
-  * @param target_gamma the targeted gamma
-  * @param reached_gamma the gamma that could be reached
-  * @return true if the targeted gamma could be reached
-  */
-  bool setGamma(const float& target_gamma, float& reached_gamma);
-
+  bool setGain(const float& target_gain);
 
   /**
   * Returns true if the camera was put into sleep mode
@@ -231,26 +186,13 @@ protected:
   void genSamplingIndicesRec(std::vector<std::size_t>& indices, const std::size_t& min_window_height,
                              const cv::Point2i& start, const cv::Point2i& end);
 
-  /**
-  * Calculates the mean brightness of the image based on the subset indices
-  * @return the mean brightness of the image
-  */
-  float calcCurrentBrightness();
-
 
   void initCalibrationMatrices(sensor_msgs::CameraInfo& info, const cv::Mat& D, const cv::Mat& K);
 
 
   ros::NodeHandle nh_;
   ArenaCameraParameter arena_camera_parameter_set_;
-  ros::ServiceServer set_binning_srv_;
-  ros::ServiceServer set_roi_srv_;
-  ros::ServiceServer set_exposure_srv_;
-  ros::ServiceServer set_gain_srv_;
-  ros::ServiceServer set_gamma_srv_;
-  ros::ServiceServer set_brightness_srv_;
-  ros::ServiceServer set_sleeping_srv_;
-  std::vector<ros::ServiceServer> set_user_output_srvs_;
+
 
   ArenaCamera* arena_camera_;
 
@@ -266,17 +208,10 @@ protected:
   camera_info_manager::CameraInfoManager* camera_info_manager_;
 
   std::vector<std::size_t> sampling_indices_;
-  std::array<float, 256> brightness_exp_lut_;
 
   bool is_sleeping_;
   boost::recursive_mutex grab_mutex_;
 
-  /// diagnostics:
-  diagnostic_updater::Updater diagnostics_updater_;
-  void diagnostics_timer_callback_(const ros::TimerEvent&);
-  ros::Timer diagnostics_trigger_;
-  void create_diagnostics(diagnostic_updater::DiagnosticStatusWrapper& stat);
-  void create_camera_info_diagnostics(diagnostic_updater::DiagnosticStatusWrapper& stat);
 };
 
 }  // namespace arena_camera

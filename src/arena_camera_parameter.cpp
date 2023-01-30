@@ -27,13 +27,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-// STD
-#include <ios> // std::boolalpha 
-
-// ROS
-#include <sensor_msgs/image_encodings.h>
-
-// Arena node
 #include <arena_camera/arena_camera_parameter.h>
 
 namespace arena_camera
@@ -45,22 +38,14 @@ ArenaCameraParameter::ArenaCameraParameter()
   , camera_info_url_("")
   , image_encoding_("")
   , image_encoding_given_(false)
-  , binning_x_(1)
-  , binning_y_(1)
-  , binning_x_given_(false)
-  , binning_y_given_(false)
-  , downsampling_factor_exp_search_(1)
-  ,
   // ##########################
   //  image intensity settings
   // ##########################
-  exposure_(10000.0)
+  , exposure_(10000.0)
   , exposure_given_(false)
-  , gain_(0.5)
+  , gain_(0.0)
   , gain_given_(false)
-  , gamma_(1.0)
-  , gamma_given_(false)
-  , brightness_(100)
+  , brightness_(20)
   , brightness_given_(false)
   , brightness_continuous_(false)
   , exposure_auto_(true)
@@ -72,7 +57,6 @@ ArenaCameraParameter::ArenaCameraParameter()
   , mtu_size_(3000)
   , inter_pkg_delay_(1000)
   , shutter_mode_(SM_DEFAULT)
-  , auto_flash_(false)
 {
 }
 
@@ -98,43 +82,6 @@ void ArenaCameraParameter::readFromRosParameterServer(const ros::NodeHandle& nh)
     nh.getParam("camera_info_url", camera_info_url_);
   }
 
-  binning_x_given_ = nh.hasParam("binning_x");
-  if (binning_x_given_)
-  {
-    int binning_x;
-    nh.getParam("binning_x", binning_x);
-    ROS_DEBUG_STREAM( "binning x is given and has value " << binning_x);
-    if (binning_x > 32 || binning_x < 0)
-    {
-      ROS_WARN_STREAM("Desired horizontal binning_x factor not in valid "
-                      << "range! Binning x = " << binning_x << ". Will reset it to "
-                      << "default value (1)");
-      binning_x_given_ = false;
-    }
-    else
-    {
-      binning_x_ = static_cast<size_t>(binning_x);
-    }
-  }
-  binning_y_given_ = nh.hasParam("binning_y");
-  if (binning_y_given_)
-  {
-    int binning_y;
-    nh.getParam("binning_y", binning_y);
-    ROS_DEBUG_STREAM("binning y is given and has value " << binning_y);
-    if (binning_y > 32 || binning_y < 0)
-    {
-      ROS_WARN_STREAM("Desired vertical binning_y factor not in valid "
-                      << "range! Binning y = " << binning_y << ". Will reset it to "
-                      << "default value (1)");
-      binning_y_given_ = false;
-    }
-    else
-    {
-      binning_y_ = static_cast<size_t>(binning_y);
-    }
-  }
-  nh.param<int>("downsampling_factor_exposure_search", downsampling_factor_exp_search_, 20);
   image_encoding_given_ = nh.hasParam("image_encoding");
   if (nh.hasParam("image_encoding"))
   {
@@ -158,13 +105,6 @@ void ArenaCameraParameter::readFromRosParameterServer(const ros::NodeHandle& nh)
   // ##########################
   //  image intensity settings
   // ##########################
-
-  gamma_given_ = nh.hasParam("gamma");
-  if (gamma_given_)
-  {
-    nh.getParam("gamma", gamma_);
-    ROS_DEBUG_STREAM("gamma is given and has value " << gamma_);
-  }
 
   // > 0: Exposure time in microseconds
   exposure_given_ = nh.hasParam("exposure");
@@ -367,11 +307,6 @@ void ArenaCameraParameter::readFromRosParameterServer(const ros::NodeHandle& nh)
     shutter_mode_ = SM_DEFAULT;
   }
 
-  nh.param<bool>("auto_flash", auto_flash_, false);
-  nh.param<bool>("auto_flash_line_2", auto_flash_line_2_, true);
-  nh.param<bool>("auto_flash_line_3", auto_flash_line_3_, true);
-
-  ROS_WARN("Autoflash: %i, line2: %i , line3: %i ", auto_flash_, auto_flash_line_2_, auto_flash_line_3_);
   validateParameterSet(nh);
   return;
 }

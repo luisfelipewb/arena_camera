@@ -44,11 +44,8 @@ endif()
 #
 
 set(CATKIN_COMPONENTS
-     actionlib
-     camera_control_msgs # arena_camera depends on this upper custom msg package 
      camera_info_manager
      cv_bridge
-     diagnostic_updater
      image_geometry
      image_transport
      roscpp
@@ -189,37 +186,6 @@ add_dependencies(
 # define with absolute paths
 
 
-#
-# WRITE_DEVICE_USER_ID_TO_CAMERA
-#
-
-set(write_device_user_id_to_camera write_device_user_id_to_camera)
-
-# - declare an executable
-# - needed ".cpp"s
-add_executable(
-    ${write_device_user_id_to_camera} # run by rosrun
-        src/write_device_user_id_to_camera.cpp
-)
-
-# needed ".h"s
-target_include_directories(
-    ${write_device_user_id_to_camera}
-        PRIVATE ${arena_sdk_INCLUDE_DIRS}
-        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-)
-
-# needed ".so"s
-target_link_libraries(
-    ${write_device_user_id_to_camera}
-        ${arena_sdk_LIBRARIES}
-)
-
-
-# target_link_directories NOT NEEDED as arena_sdk_LIBRARIES is 
-# define with absolute paths
-
-
 # -----------------------------------------------------------------------------
 #
 # 9
@@ -279,7 +245,6 @@ install(
         ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
     FILES_MATCHING PATTERN
         "*.h"
-    PATTERN "internal" EXCLUDE
 )
 
 ## Testing ##

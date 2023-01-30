@@ -111,31 +111,9 @@ public:
   void setCameraInfoURL(const ros::NodeHandle& nh, const std::string& camera_info_url);
 
 public:
-  /** Binning factor to get downsampled images. It refers here to any camera
-   * setting which combines rectangular neighborhoods of pixels into larger
-   * "super-pixels." It reduces the resolution of the output image to
-   * (width / binning_x) x (height / binning_y).
-   * The default values binning_x = binning_y = 0 are considered the same
-   * as binning_x = binning_y = 1 (no subsampling).
-   */
-  size_t binning_x_;
-  size_t binning_y_;
-
-  /**
-   * Flags which indicate if the binning factors are provided and hence
-   * should be set during startup
-   */
-  bool binning_x_given_;
-  bool binning_y_given_;
 
   bool image_encoding_given_;
 
-  /**
-   * Factor that describes the image downsampling to speed up the exposure
-   * search to find the desired brightness.
-   * The smallest window height is img_rows/downsampling_factor
-   */
-  int downsampling_factor_exp_search_;
 
   // #######################################################################
   // ###################### Image Intensity Settings  ######################
@@ -168,20 +146,6 @@ public:
    * set during startup
    */
   bool gain_given_;
-
-  /**
-   * Gamma correction of pixel intensity.
-   * Adjusts the brightness of the pixel values output by the camera's sensor
-   * to account for a non-linearity in the human perception of brightness or
-   * of the display system (such as CRT).
-   */
-  double gamma_;
-
-  /**
-   * Flag which indicates if the gamma correction value is provided and
-   * hence should be set during startup
-   */
-  bool gamma_given_;
 
   /**
    * The average intensity value of the images. It depends on the exposure
@@ -268,23 +232,6 @@ public:
    */
   bool has_intrinsic_calib_;
 
-  /**
-   * Flag that indicates if the camera has a flash connected which should be on on exposure
-   * Only supported for GigE cameras. Default: false
-   */
-  bool auto_flash_;
-  /**
-   * Flag that indicates if the camera, when using auto_flash == true, a flash connected on line 2 which should be on on
-   * exposure
-   * Only supported for GigE cameras. Default: true
-   */
-  bool auto_flash_line_2_;
-  /**
-   * Flag that indicates if the camera has, when using auto_flash == true,  a flash connected on line 3 which should be
-   * on on exposure
-   * Only supported for GigE cameras. Default: true
-   */
-  bool auto_flash_line_3_;
 
 protected:
   /**

@@ -128,21 +128,6 @@ public:
    */
   virtual bool setROI(const sensor_msgs::RegionOfInterest target_roi, sensor_msgs::RegionOfInterest& reached_roi) = 0;
 
-  /**
-   * Sets the target horizontal binning_x factor
-   * @param target_binning_x the target horizontal binning_x factor.
-   * @param reached_binning_x the reached horizontal binning_x factor.
-   * @return false if a communication error occurred or true otherwise.
-   */
-  virtual bool setBinningX(const size_t& target_binning_x, size_t& reached_binning_x) = 0;
-
-  /**
-   * Sets the target vertical binning_y factor
-   * @param target_binning_y the target vertical binning_y factor.
-   * @param reached_binning_y the reached vertical binning_y factor.
-   * @return false if a communication error occurred or true otherwise.
-   */
-  virtual bool setBinningY(const size_t& target_binning_y, size_t& reached_binning_y) = 0;
 
   /**
    * Detects the supported image pixel encodings of the camera an stores
@@ -171,13 +156,6 @@ public:
   virtual bool setExposure(const float& target_exposure, float& reached_exposure) = 0;
 
   /**
-   * Sets autoflash active for the specified lines
-   * @param flash_on_lines map from line e.g. 1 or 2 to a boolean to
-            activate or deactivate the autoflash for this line .
-   * @return false if a communication error occurred or true otherwise.
-   */
-  virtual bool setAutoflash(const std::map<int, bool> flash_on_lines) = 0;
-  /**
    * Sets the gain in percent independent of the camera type
    * @param target_gain the target gain in percent.
    * @param reached_gain the reached gain in percent.
@@ -197,18 +175,10 @@ public:
    * Sets the target brightness
    * Setting the exposure time to -1 enables the AutoExposureContinuous mode.
    * Setting the exposure time to  0 disables the AutoExposure function.
-   * If the target exposure time is not in the range of Arena's auto target brightness range
-   * the extended brightness search is started.
    * @param target_brightness is the desired brightness. Range is [1...255].
-   * @param current_brightness is the current brightness with the given settings.
-   * @param exposure_auto flag which indicates if the target_brightness
-   *                      should be reached adapting the exposure time
-   * @param gain_auto flag which indicates if the target_brightness should be
-   *                      reached adapting the gain.
    * @return true if the brightness could be reached or false otherwise.
    */
-  virtual bool setBrightness(const int& target_brightness, const float& current_brightness, const bool& exposure_auto,
-                             const bool& gain_auto) = 0;
+  virtual bool setBrightness(const int& target_brightness) = 0;
 
   /**
    * @brief Detects and counts the number of user-settable-outputs the cam
@@ -246,18 +216,6 @@ public:
    * @return the roi setting.
    */
   virtual sensor_msgs::RegionOfInterest currentROI() = 0;
-
-  /**
-   * Returns the current horizontal binning_x setting.
-   * @return the horizontal binning_x setting.
-   */
-  virtual size_t currentBinningX() = 0;
-
-  /**
-   * Returns the current vertical binning_y setting.
-   * @return the vertical binning_y setting.
-   */
-  virtual size_t currentBinningY() = 0;
 
   /**
    * Get the camera image encoding according to sensor_msgs::image_encodings
@@ -466,11 +424,6 @@ protected:
    * acquisition contains valid data
    */
   bool is_ready_;
-
-  /**
-   * Max allowed delta between target and reached brightness
-   */
-  const float max_brightness_tolerance_;
 
   /**
    * Exposure times to use when in sequencer mode.

@@ -35,7 +35,7 @@
 #include <ArenaApi.h>
 
 // Arena node
-#include <arena_camera/internal/arena_camera.h>
+#include <arena_camera/arena_camera.h>
 
 namespace arena_camera
 {
@@ -46,7 +46,6 @@ ArenaCamera::ArenaCamera()
   , img_size_byte_(0)
   , grab_timeout_(-1.0)
   , is_ready_(false)
-  , max_brightness_tolerance_(2.5)
 {
 }
 
@@ -68,11 +67,6 @@ const size_t& ArenaCamera::imageCols() const
 const size_t& ArenaCamera::imageSize() const
 {
   return img_size_byte_;
-}
-
-const float& ArenaCamera::maxBrightnessTolerance() const
-{
-  return max_brightness_tolerance_;
 }
 
 const bool& ArenaCamera::isReady() const
