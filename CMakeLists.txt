@@ -156,7 +156,6 @@ add_executable(
     ${arena_camera_node_name}  # runs by rosrun
         src/arena_camera_node.cpp
         src/arena_camera_parameter.cpp
-        src/arena_camera.cpp
         src/encoding_conversions.cpp
         src/main.cpp
 )

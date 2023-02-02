@@ -47,7 +47,6 @@
 #include <cv_bridge/cv_bridge.h>
 
 // Arena
-#include <arena_camera/arena_camera.h>
 #include <arena_camera/arena_camera_parameter.h>
 
 namespace arena_camera
@@ -192,9 +191,6 @@ protected:
 
   ros::NodeHandle nh_;
   ArenaCameraParameter arena_camera_parameter_set_;
-
-
-  ArenaCamera* arena_camera_;
 
   image_transport::ImageTransport* it_;
   image_transport::CameraPublisher img_raw_pub_;

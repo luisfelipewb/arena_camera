@@ -50,7 +50,7 @@ using sensor_msgs::CameraInfoPtr;
 ArenaCameraNode::ArenaCameraNode()
   : nh_("~")
   , arena_camera_parameter_set_()
-  , arena_camera_(nullptr)
+  // , arena_camera_(nullptr)
   , it_(new image_transport::ImageTransport(nh_))
   , img_raw_pub_(it_->advertiseCamera("image_raw", 1))
   , img_rect_pub_(nullptr)
