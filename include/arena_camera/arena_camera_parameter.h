@@ -88,15 +88,30 @@ public:
   const std::string& imageEncoding() const;
 
   /**
+   * Getter for the camera_info_url set from ros-parameter server
+   */
+  const std::string& cameraInfoURL() const;
+
+  /**
    * Setter for the frame_rate_ initially set from ros-parameter server
    * The frame rate needs to be updated with the value the camera supports
    */
   void setFrameRate(const ros::NodeHandle& nh, const double& frame_rate);
 
   /**
-   * Getter for the camera_info_url set from ros-parameter server
+   * Setter for the exposure_
    */
-  const std::string& cameraInfoURL() const;
+  void setExposure(const ros::NodeHandle& nh, const double& exposure);
+
+  /**
+   * Setter for the gain_
+   */
+  void setGain(const ros::NodeHandle& nh, const double& gain);
+
+  /**
+   * Setter for the brightness_
+   */
+  void setBrightness(const ros::NodeHandle& nh, const int& brightness);
 
   /**
    * Setter for the camera_info_url_ if a new CameraInfo-Msgs Object is
@@ -105,9 +120,6 @@ public:
   void setCameraInfoURL(const ros::NodeHandle& nh, const std::string& camera_info_url);
 
 public:
-
-  bool image_encoding_given_;
-
 
   // #######################################################################
   // ###################### Image Intensity Settings  ######################
@@ -123,23 +135,11 @@ public:
   double exposure_;
 
   /**
-   * Flag which indicates if the exposure time is provided and hence should
-   * be set during startup
-   */
-  bool exposure_given_;
-
-  /**
    * The target gain in percent of the maximal value the camera supports
    * For USB-Cameras, the gain is in dB, for GigE-Cameras it is given in so
    * called 'device specific units'.
    */
   double gain_;
-
-  /**
-   * Flag which indicates if the gain value is provided and hence should be
-   * set during startup
-   */
-  bool gain_given_;
 
   /**
    * The average intensity value of the images. It depends on the exposure
@@ -153,12 +153,6 @@ public:
    * assumed to be fix.
    */
   int brightness_;
-
-  /**
-   * Flag which indicates if the average brightness is provided and hence
-   * should be set during startup
-   */
-  bool brightness_given_;
 
   /**
    * Only relevant, if 'brightness' is set as ros-parameter:

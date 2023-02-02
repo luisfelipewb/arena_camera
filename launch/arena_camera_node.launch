@@ -9,7 +9,7 @@
     <arg     if="$(arg debug)" name="launch_prefix" value="gdb -ex run --args" />
 
     <node name="$(arg node_name)" pkg="arena_camera" type="arena_camera_node" output="screen"
-          respawn="$(arg respawn)" launch-prefix="$(arg launch_prefix)">
+          respawn="$(arg respawn)" launch-prefix="$(arg launch_prefix)" clear_params="true">
         <rosparam command="load" file="$(arg config_file)" />
     </node>
 </launch>

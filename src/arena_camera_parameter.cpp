@@ -27,31 +27,44 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#define CAMERA_FRAME "arena_camera"
+#define DEVICE_USER_ID ""
+#define FRAME_RATE 10.0
+#define CAMERA_INFO_URL ""
+#define IMAGE_ENCODING "bayer_rggb8"
+#define EXPOSURE 10000.0
+#define GAIN 0.0
+#define BRIGHTNESS 100
+#define BRIGHTNESS_CONTINUOUS true
+#define EXPOSURE_AUTO true
+#define GAIN_AUTO true
+#define EXPOSURE_SEARCH_TIMEOUT 5.0
+#define AUTO_EXP_UPPER_LIM 10000000.0
+#define MTU_SIZE 1500
+#define INTER_PKG_DELAY 1000
+#define SHUTTER_MODE_STR "global"
+
 #include <arena_camera/arena_camera_parameter.h>
 
 namespace arena_camera
 {
 ArenaCameraParameter::ArenaCameraParameter()
-  : camera_frame_("arena_camera")
-  , device_user_id_("")
-  , frame_rate_(5.0)
-  , camera_info_url_("")
-  , image_encoding_("")
-  , image_encoding_given_(false)
-  , exposure_(10000.0)
-  , exposure_given_(false)
-  , gain_(0.0)
-  , gain_given_(false)
-  , brightness_(100)
-  , brightness_given_(false)
-  , brightness_continuous_(false)
-  , exposure_auto_(true)
-  , gain_auto_(true)
-  , exposure_search_timeout_(5.)
-  , auto_exp_upper_lim_(0.0)
-  , mtu_size_(3000)
-  , inter_pkg_delay_(1000)
-  , shutter_mode_(SM_DEFAULT)
+  : camera_frame_(CAMERA_FRAME)
+  , device_user_id_(DEVICE_USER_ID)
+  , frame_rate_(FRAME_RATE)
+  , camera_info_url_(CAMERA_INFO_URL)
+  , image_encoding_(IMAGE_ENCODING)
+  , exposure_(EXPOSURE)
+  , gain_(GAIN)
+  , brightness_(BRIGHTNESS)
+  , brightness_continuous_(BRIGHTNESS_CONTINUOUS)
+  , exposure_auto_(EXPOSURE_AUTO)
+  , gain_auto_(GAIN_AUTO)
+  , exposure_search_timeout_(EXPOSURE_SEARCH_TIMEOUT)
+  , auto_exp_upper_lim_(AUTO_EXP_UPPER_LIM)
+  , mtu_size_(MTU_SIZE)
+  , inter_pkg_delay_(INTER_PKG_DELAY)
+  , shutter_mode_(SM_GLOBAL)
 {
 }
 
@@ -61,101 +74,85 @@ ArenaCameraParameter::~ArenaCameraParameter()
 
 void ArenaCameraParameter::readFromRosParameterServer(const ros::NodeHandle& nh)
 {
-  nh.param<std::string>("camera_frame", camera_frame_, "arena_camera");
-
-  nh.param<std::string>("device_user_id", device_user_id_, "");
-
-  if (nh.hasParam("frame_rate"))
-  {
-    nh.getParam("frame_rate", frame_rate_);
-    ROS_DEBUG_STREAM("frame_rate is given and has value " << frame_rate_);
+  if (nh.param<std::string>("camera_frame" , camera_frame_ , CAMERA_FRAME)) {
+    ROS_INFO_STREAM("Parameter provided: camera_frame=" << camera_frame_);
   }
 
-  nh.param<std::string>("camera_info_url", camera_info_url_, "");
-  if (nh.hasParam("camera_info_url"))
-  {
-    nh.getParam("camera_info_url", camera_info_url_);
+  if (nh.param<std::string>("device_user_id" , device_user_id_ , DEVICE_USER_ID)) {
+    ROS_INFO_STREAM("Parameter provided: device_user_id=" << device_user_id_);
   }
 
-  image_encoding_given_ = nh.hasParam("image_encoding");
-  if (nh.hasParam("image_encoding"))
-  {
-    std::string encoding;
-    nh.getParam("image_encoding", encoding);
-    image_encoding_ = encoding;
+  if (nh.param<double>("frame_rate" , frame_rate_ , FRAME_RATE)) {
+    ROS_INFO_STREAM("Parameter provided: frame_rate=" << frame_rate_);
   }
 
-  exposure_given_ = nh.hasParam("exposure");
-  brightness_given_ = nh.hasParam("brightness");
-  gain_given_ = nh.hasParam("gain");
-  if (exposure_given_)
-  {
-    nh.getParam("exposure", exposure_);
-    ROS_DEBUG_STREAM("exposure is given and has value " << exposure_);
-  }
-  if (gain_given_)
-  {
-    nh.getParam("gain", gain_);
-    ROS_DEBUG_STREAM("gain is given and has value " << gain_ );
-  }
-  if (brightness_given_)
-  {
-    nh.getParam("brightness", brightness_);
-    ROS_DEBUG_STREAM("brightness is given and has value " << brightness_);
+  if (nh.param<std::string>("camera_info_url" , camera_info_url_ , CAMERA_INFO_URL)) {
+    ROS_INFO_STREAM("Parameter provided: camera_info_url=" << camera_info_url_);
   }
 
-  auto ignoreBrightness = brightness_given_ && gain_given_ && exposure_given_;
-  if (ignoreBrightness)
-  {
-    ROS_WARN_STREAM("Gain ('gain') and Exposure Time ('exposure') "
-                    << "are given as startup ros-parameter and hence assumed to be "
-                    << "fix! The desired brightness (" << brightness_ << ") can't "
-                    << "be reached! Will ignore the brightness by only "
-                    << "setting gain and exposure . . .");
-    brightness_given_ = false;
-  }
-  else if (nh.hasParam("brightness_continuous"))
-  {
-    nh.getParam("brightness_continuous", brightness_continuous_);
-    ROS_DEBUG_STREAM("brightness is continuous");
-  }
-  
-  auto exposure_auto_given = nh.hasParam("exposure_auto");
-  nh.getParam("exposure_auto", exposure_auto_);
-  
-  auto gain_auto_given = nh.hasParam("gain_auto");
-  nh.getParam("gain_auto", gain_auto_);
-  
-  nh.param<double>("exposure_search_timeout", exposure_search_timeout_, 5.);
-  nh.param<double>("auto_exposure_upper_limit", auto_exp_upper_lim_, 10000000.);
-
-  if (nh.hasParam("gige/mtu_size"))
-  {
-    nh.getParam("gige/mtu_size", mtu_size_);
+  if (nh.param<std::string>("image_encoding" , image_encoding_ , IMAGE_ENCODING)) {
+    ROS_INFO_STREAM("Parameter provided: image_encoding=" << image_encoding_);
   }
 
-  if (nh.hasParam("gige/inter_pkg_delay"))
-  {
-    nh.getParam("gige/inter_pkg_delay", inter_pkg_delay_);
+  if (nh.param<double>("exposure" , exposure_ , EXPOSURE)) {
+    ROS_INFO_STREAM("Parameter provided: exposure=" << exposure_);
+  }
+
+  if (nh.param<double>("gain" , gain_ , GAIN)) {
+    ROS_INFO_STREAM("Parameter provided: gain=" << gain_);
+  }
+
+  if (nh.param<int>("brightness" , brightness_ , BRIGHTNESS)) {
+    ROS_INFO_STREAM("Parameter provided: brightness=" << brightness_);
+  }
+
+  if (nh.param<bool>("brightness_continuous" , brightness_continuous_ , BRIGHTNESS_CONTINUOUS)) {
+    ROS_INFO_STREAM("Parameter provided: brightness_continuous=" << brightness_continuous_);
+  }
+
+  if (nh.param<bool>("exposure_auto" , exposure_auto_ , EXPOSURE_AUTO)) {
+    ROS_INFO_STREAM("Parameter provided: exposure_auto=" << exposure_auto_);
+  }
+
+  if (nh.param<bool>("gain_auto" , gain_auto_ , GAIN_AUTO)) {
+    ROS_INFO_STREAM("Parameter provided: gain_auto=" << gain_auto_);
+  }
+
+  if (nh.param<double>("exposure_search_timeout" , exposure_search_timeout_ , EXPOSURE_SEARCH_TIMEOUT)) {
+    ROS_INFO_STREAM("Parameter provided: exposure_search_timeout=" << exposure_search_timeout_);
+  }
+
+  if (nh.param<double>("auto_exp_upper_lim" , auto_exp_upper_lim_ , AUTO_EXP_UPPER_LIM)) {
+    ROS_INFO_STREAM("Parameter provided: auto_exp_upper_lim=" << auto_exp_upper_lim_);
+  }
+
+  if (nh.param<int>("mtu_size" , mtu_size_ , MTU_SIZE)) {
+    ROS_INFO_STREAM("Parameter provided: mtu_size=" << mtu_size_);
+  }
+
+  if (nh.param<int>("inter_pkg_delay" , inter_pkg_delay_ , INTER_PKG_DELAY)) {
+    ROS_INFO_STREAM("Parameter provided: inter_pkg_delay=" << inter_pkg_delay_);
   }
 
   std::string shutter_param_string;
-  nh.param<std::string>("shutter_mode", shutter_param_string, "");
-  if (shutter_param_string == "rolling")
-  {
-    shutter_mode_ = SM_ROLLING;
-  }
-  else if (shutter_param_string == "global")
-  {
-    shutter_mode_ = SM_GLOBAL;
-  }
-  else if (shutter_param_string == "global_reset")
-  {
-    shutter_mode_ = SM_GLOBAL_RESET_RELEASE;
-  }
-  else
-  {
-    shutter_mode_ = SM_DEFAULT;
+  if (nh.param<std::string>("shutter_mode" , shutter_param_string , "global")) {
+    ROS_INFO_STREAM("Parameter provided: shutter_mode=" << shutter_param_string);
+    if (shutter_param_string == "rolling")
+    {
+      shutter_mode_ = SM_ROLLING;
+    }
+    else if (shutter_param_string == "global")
+    {
+      shutter_mode_ = SM_GLOBAL;
+    }
+    else if (shutter_param_string == "global_reset")
+    {
+      shutter_mode_ = SM_GLOBAL_RESET_RELEASE;
+    }
+    else
+    {
+      shutter_mode_ = SM_DEFAULT;
+    }
   }
 
   validateParameterSet(nh);
@@ -165,51 +162,40 @@ void ArenaCameraParameter::readFromRosParameterServer(const ros::NodeHandle& nh)
 
 void ArenaCameraParameter::validateParameterSet(const ros::NodeHandle& nh)
 {
-  if (!device_user_id_.empty())
-  {
-    ROS_INFO_STREAM("Trying to open the following camera: " << device_user_id_.c_str());
-  }
-  else
+  if (device_user_id_.empty())
   {
     ROS_INFO_STREAM("No Device User ID set -> Will open the camera device found first");
   }
 
   if (frame_rate_ < 0 && frame_rate_ != -1)
   {
-    ROS_WARN_STREAM("Unexpected frame rate (" << frame_rate_ << "). Will "
-                                              << "reset it to default value which is 5 Hz");
-    frame_rate_ = 5.0;
-    nh.setParam("frame_rate", frame_rate_);
+    ROS_WARN_STREAM("Invalid frame rate (" << frame_rate_ << "Hz). Using " << FRAME_RATE << " Hz instead");
+    setFrameRate(nh, FRAME_RATE);
   }
 
-  if (exposure_given_ && (exposure_ <= 0.0 || exposure_ > 1e7))
+  if (exposure_ <= 0.0 || exposure_ > 1e7)
   {
-    ROS_WARN_STREAM("Desired exposure measured in microseconds not in "
-                    << "valid range! Exposure time = " << exposure_ << ". Will "
-                    << "reset it to default value!");
-    exposure_given_ = false;
+    ROS_WARN_STREAM("Invalid exposure (" << exposure_ << "ms) Using " << EXPOSURE << " instead");
+    setExposure(nh, EXPOSURE);
   }
 
-  if (gain_given_ && (gain_ < 0.0 || gain_ > 1.0))
+  if (gain_ < 0.0 || gain_ > 1.0)
   {
-    ROS_WARN_STREAM("Desired gain (in percent) not in allowed range! "
-                    << "Gain = " << gain_ << ". Will reset it to default value!");
-    gain_given_ = false;
+    ROS_WARN_STREAM("Invalid gain (" << gain_ << ") Using " << gain_ << " instead");
+    setGain(nh, GAIN);
   }
 
-  if (brightness_given_ && (brightness_ < 0.0 || brightness_ > 255))
+  if (brightness_ < 0.0 || brightness_ > 255)
   {
-    ROS_WARN_STREAM("Desired brightness not in allowed range [0 - 255]! "
-                    << "Brightness = " << brightness_ << ". Will reset it to "
-                    << "default value!");
-    brightness_given_ = false;
+    ROS_WARN_STREAM("Invalid brightness (" << gain_ << ") Using " << BRIGHTNESS << " instead");
+    setBrightness(nh, BRIGHTNESS);
   }
 
   if (exposure_search_timeout_ < 5.)
   {
-    ROS_WARN_STREAM("Low timeout for exposure search detected! Exposure "
-                    << "search may fail.");
+    ROS_WARN_STREAM("Low timeout for exposure search detected! Exposure search may fail.");
   }
+
   return;
 }
 
@@ -253,15 +239,34 @@ const double& ArenaCameraParameter::frameRate() const
   return frame_rate_;
 }
 
+
+const std::string& ArenaCameraParameter::cameraInfoURL() const
+{
+  return camera_info_url_;
+}
+
 void ArenaCameraParameter::setFrameRate(const ros::NodeHandle& nh, const double& frame_rate)
 {
   frame_rate_ = frame_rate;
   nh.setParam("frame_rate", frame_rate_);
 }
 
-const std::string& ArenaCameraParameter::cameraInfoURL() const
+void ArenaCameraParameter::setExposure(const ros::NodeHandle& nh, const double& exposure)
 {
-  return camera_info_url_;
+  exposure_ = exposure;
+  nh.setParam("exposure", exposure_);
+}
+
+void ArenaCameraParameter::setGain(const ros::NodeHandle& nh, const double& gain)
+{
+  gain_ = gain;
+  nh.setParam("gain", gain_);
+}
+
+void ArenaCameraParameter::setBrightness(const ros::NodeHandle& nh, const int& brightness)
+{
+  brightness_ = brightness;
+  nh.setParam("brightness", brightness_);
 }
 
 void ArenaCameraParameter::setCameraInfoURL(const ros::NodeHandle& nh, const std::string& camera_info_url)

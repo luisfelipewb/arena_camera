@@ -190,7 +190,6 @@ sensor_msgs::RegionOfInterest currentROI()
   sensor_msgs::RegionOfInterest roi;
   roi.width = pImage_->GetWidth();
   roi.height = pImage_->GetHeight();
-  ;
   roi.x_offset = pImage_->GetOffsetX();
   roi.y_offset = pImage_->GetOffsetY();
   return roi;
@@ -412,7 +411,7 @@ bool ArenaCameraNode::startGrabbing()
       ROS_INFO_STREAM("Settings Exposure to off/false");
     }
 
-    if (arena_camera_parameter_set_.exposure_given_)
+    if (arena_camera_parameter_set_.exposure_auto_)
      {
       float reached_exposure;
       if (setExposure(arena_camera_parameter_set_.exposure_, reached_exposure))
@@ -443,7 +442,7 @@ bool ArenaCameraNode::startGrabbing()
       ROS_INFO_STREAM("Settings Gain to off/false");
     }
 
-    if (arena_camera_parameter_set_.gain_given_)
+    if (arena_camera_parameter_set_.gain_auto_)
     {
       float reached_gain;
       if (setGain(arena_camera_parameter_set_.gain_))
@@ -573,7 +572,6 @@ void ArenaCameraNode::setupRectification()
   {
     img_rect_pub_ = new ros::Publisher(nh_.advertise<sensor_msgs::Image>("image_rect", 1));
   }
-
 
   if (!pinhole_model_)
   {
