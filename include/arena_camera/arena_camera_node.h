@@ -87,16 +87,22 @@ public:
 
 protected:
   /**
-  * Creates the camera instance and starts the services and action servers.
+  * Searches for the camera and connects to it.
   * @return false if an error occurred
   */
-  bool initAndRegister();
+  bool connectCamera();
+
+  /**
+  * Setup the camera configurations
+  * @return
+  */
+  bool setupCameraConfiguration();
 
   /**
   * Start the camera and initialize the messages
   * @return
   */
-  bool startGrabbing();
+  bool setupCameraInfo();
 
   bool setImageEncoding(const std::string& ros_encoding);
 
@@ -141,15 +147,13 @@ protected:
   */
   bool setROI(const sensor_msgs::RegionOfInterest target_roi, sensor_msgs::RegionOfInterest& reached_roi);
 
-  bool setExposureValue(const float& target_exposure, float& reached_exposure);
-
   /**
   * Update the exposure value on the camera
   * @param target_exposure the targeted exposure
   * @param reached_exposure the exposure that could be reached
   * @return true if the targeted exposure could be reached
   */
-  bool setExposure(const float& target_exposure, float& reached_exposure);
+  bool setExposure(const float& target_exposure);
 
 
   /**
@@ -190,7 +194,7 @@ protected:
 
 
   ros::NodeHandle nh_;
-  ArenaCameraParameter arena_camera_parameter_set_;
+  ArenaCameraParameter camera_parameters_;
 
   image_transport::ImageTransport* it_;
   image_transport::CameraPublisher img_raw_pub_;

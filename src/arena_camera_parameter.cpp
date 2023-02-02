@@ -173,18 +173,6 @@ void ArenaCameraParameter::validateParameterSet(const ros::NodeHandle& nh)
     setFrameRate(nh, FRAME_RATE);
   }
 
-  if (exposure_ <= 0.0 || exposure_ > 1e7)
-  {
-    ROS_WARN_STREAM("Invalid exposure (" << exposure_ << "ms) Using " << EXPOSURE << " instead");
-    setExposure(nh, EXPOSURE);
-  }
-
-  if (gain_ < 0.0 || gain_ > 1.0)
-  {
-    ROS_WARN_STREAM("Invalid gain (" << gain_ << ") Using " << gain_ << " instead");
-    setGain(nh, GAIN);
-  }
-
   if (brightness_ < 0.0 || brightness_ > 255)
   {
     ROS_WARN_STREAM("Invalid brightness (" << gain_ << ") Using " << BRIGHTNESS << " instead");

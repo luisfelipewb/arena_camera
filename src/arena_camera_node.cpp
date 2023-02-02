@@ -49,7 +49,7 @@ using sensor_msgs::CameraInfoPtr;
 
 ArenaCameraNode::ArenaCameraNode()
   : nh_("~")
-  , arena_camera_parameter_set_()
+  , camera_parameters_()
   // , arena_camera_(nullptr)
   , it_(new image_transport::ImageTransport(nh_))
   , img_raw_pub_(it_->advertiseCamera("image_raw", 1))
@@ -68,31 +68,38 @@ void ArenaCameraNode::init()
   // reading all necessary parameter to open the desired camera from the
   // ros-parameter-server. In case that invalid parameter values can be
   // detected, the interface will reset them to the default values.
-  // These parameters furthermore contain the intrinsic calibration matrices,
-  // in case they are provided
-  arena_camera_parameter_set_.readFromRosParameterServer(nh_);
-
-  // setting the camera info URL to produce rectified image. Can substitute
-  // any desired file path or comment out this line if only producing raw
-  // images.
-  //  arena_camera_parameter_set_.setCameraInfoURL(nh_,
-  //  "file://${ROS_HOME}/camera_info/camera.yaml");
+  camera_parameters_.readFromRosParameterServer(nh_);
 
   // creating the target ArenaCamera-Object with the specified
   // device_user_id, registering the Software-Trigger-Mode, starting the
   // communication with the device and enabling the desired startup-settings
-  if (!initAndRegister())
+  if (!connectCamera())
   {
     ros::shutdown();
     return;
   }
 
-  // starting the grabbing procedure with the desired image-settings
-  if (!startGrabbing())
+  // Configure camera parameters
+  if (!setupCameraConfiguration())
   {
     ros::shutdown();
     return;
   }
+
+  // Prepare data for publishing CameraInfo
+  if (!setupCameraInfo())
+  {
+    ros::shutdown();
+    return;
+  }
+
+  ROS_INFO_STREAM("Camera is ready");
+
+  // ROS_DEBUG_STREAM("Startup settings: "
+  //                 << "encoding = '" << currentROSEncoding() << "', "
+  //                 << "exposure = " << currentExposure() << ", "
+  //                 << "gain = " << currentGain() << ", "
+  //                 << "shutter mode = " << camera_parameters_.shutterModeString());
 }
 
 bool createDevice(const std::string& device_user_id_to_open)
@@ -116,65 +123,20 @@ bool createDevice(const std::string& device_user_id_to_open)
     }
     else
     {
-      std::vector<Arena::DeviceInfo>::iterator it;
-      bool found_desired_device = false;
-
-      for (it = deviceInfos.begin(); it != deviceInfos.end(); ++it)
-      {
-        std::string device_user_id_found(it->UserDefinedName());
-        if ((0 == device_user_id_to_open.compare(device_user_id_found)) ||
-            (device_user_id_to_open.length() < device_user_id_found.length() &&
-             (0 ==
-              device_user_id_found.compare(device_user_id_found.length() - device_user_id_to_open.length(),
-                                           device_user_id_to_open.length(), device_user_id_to_open))))
-        {
-          found_desired_device = true;
-          break;
-        }
-      }
-      if (found_desired_device)
-      {
-        ROS_INFO_STREAM("Found the desired camera with DeviceUserID " << device_user_id_to_open << ": ");
-
-        pDevice_ = pSystem_->CreateDevice(*it);
-        return true;
-      }
-      else
-      {
-        ROS_ERROR_STREAM("Couldn't find the camera that matches the "
-                         << "given DeviceUserID: " << device_user_id_to_open << "! "
-                         << "Either the ID is wrong or the cam is not yet connected");
-        return false;
-      }
+      ROS_ERROR_STREAM("Connecting to specific camera not implemented yet!");
+      return false;
     }
   }
 }
 
-bool ArenaCameraNode::initAndRegister()
+bool ArenaCameraNode::connectCamera()
 {
-  bool device_found_ = false;
-  device_found_ = createDevice(arena_camera_parameter_set_.deviceUserID());
-
-  if (device_found_ == false)
+  ros::Rate r(0.5);
+  while (ros::ok() && !createDevice(camera_parameters_.deviceUserID()))
   {
-    // wait and retry until a camera is present
-    ros::Time end = ros::Time::now() + ros::Duration(15.0);
-    ros::Rate r(0.5);
-    while (ros::ok() && device_found_ == false)
-    {
-      device_found_ = createDevice(arena_camera_parameter_set_.deviceUserID());
-      if (ros::Time::now() > end)
-      {
-        ROS_WARN_STREAM("No camera present. Keep waiting ...");
-        end = ros::Time::now() + ros::Duration(15.0);
-      }
-      r.sleep();
-      ros::spinOnce();
-    }
-  }
-  else
-  {
-    ROS_INFO_STREAM("Camera " << arena_camera_parameter_set_.deviceUserID() << " is found!");
+    ROS_WARN_STREAM_ONCE("No camera present. Keep waiting ...");
+    r.sleep();
+    ros::spinOnce();
   }
 
   if (!ros::ok())
@@ -182,6 +144,11 @@ bool ArenaCameraNode::initAndRegister()
     return false;
   }
 
+  if (pDevice_ != nullptr)
+  {
+    auto deviceSerialNumber = pDevice_->GetNodeMap()->GetNode("DeviceSerialNumber");
+    ROS_INFO_STREAM("Connected to camera " << deviceSerialNumber);
+  }
   return true;
 }
 
@@ -330,24 +297,14 @@ bool ArenaCameraNode::setImageEncoding(const std::string& ros_encoding)
   return true;
 }
 
-bool ArenaCameraNode::startGrabbing()
-{
+bool ArenaCameraNode::setupCameraConfiguration() {
   auto  pNodeMap = pDevice_->GetNodeMap();
 
-  try
-  {
-    //
-    // Arena device prior streaming settings
-    //
-
-    //
+  try {
     // PIXELFORMAT
-    //
-    setImageEncoding(arena_camera_parameter_set_.imageEncoding());
+    setImageEncoding(camera_parameters_.imageEncoding());
 
-    //
     // TRIGGER MODE
-    //
     GenApi::CStringPtr pTriggerMode = pNodeMap->GetNode("TriggerMode");
     if (GenApi::IsWritable(pTriggerMode))
     {
@@ -355,127 +312,92 @@ bool ArenaCameraNode::startGrabbing()
       Arena::SetNodeValue<GenICam::gcstring>(pNodeMap, "TriggerSource", "Software");
     }
 
-    //
     // FRAMERATE
-    //
-    auto cmdlnParamFrameRate = arena_camera_parameter_set_.frameRate();
-    auto currentFrameRate = Arena::GetNodeValue<double>(pNodeMap , "AcquisitionFrameRate");
-    auto maximumFrameRate = GenApi::CFloatPtr(pNodeMap->GetNode("AcquisitionFrameRate"))->GetMax();
-
-    // requested framerate larger than device max so we trancate it
-    if (cmdlnParamFrameRate >= maximumFrameRate)
+    float max_frame_rate = GenApi::CFloatPtr(pNodeMap->GetNode("AcquisitionFrameRate"))->GetMax();
+    if (camera_parameters_.frameRate() > max_frame_rate)
     {
-      arena_camera_parameter_set_.setFrameRate(nh_, maximumFrameRate);
-      
-      ROS_WARN("Desired framerate %.2f Hz (rounded) is higher than max possible. Will limit "
-              "framerate device max : %.2f Hz (rounded)", cmdlnParamFrameRate, maximumFrameRate);
+      camera_parameters_.setFrameRate(nh_, max_frame_rate);
+      ROS_WARN_STREAM("Maximum frame rate allowed for this camera is " << max_frame_rate << " Hz.");
     }
-    // special case:
-    // dues to inacurate float comparision we skip. If we set it it might
-    // throw becase it could be a lil larger than the max avoid the exception (double accuracy issue when setting the node) 
-    // request frame rate very close to device max
-    else if (cmdlnParamFrameRate == maximumFrameRate){
-      ROS_INFO("Framerate is %.2f Hz", cmdlnParamFrameRate);
-    }
-    // requested max frame rate
-    else if (cmdlnParamFrameRate == -1) // speacial for max frame rate available
-    {
-      arena_camera_parameter_set_.setFrameRate(nh_, maximumFrameRate);
-      
-      ROS_WARN("Framerate is set to device max : %.2f Hz", maximumFrameRate);
-    }
-    // requested framerate is valid so we set it to the device
-    else{
-      Arena::SetNodeValue<bool>(pNodeMap, "AcquisitionFrameRateEnable", true);
-      Arena::SetNodeValue<double>(pNodeMap, "AcquisitionFrameRate" , 
-                                      cmdlnParamFrameRate);
-      ROS_INFO("Framerate is set to: %.2f Hz", cmdlnParamFrameRate);
-    }
+    // Arena::SetNodeValue<bool>(pNodeMap, "AcquisitionFrameRateEnable", true);
+    // Arena::SetNodeValue<double>(pNodeMap, "AcquisitionFrameRate" , camera_parameters_.frameRate());
 
-    //
-    // EXPOSURE AUTO & EXPOSURE
-    //
-
-    // exposure_auto_ will be already set to false if exposure_given_ is true
-    // read params () solved the priority between them
-    if (arena_camera_parameter_set_.exposure_auto_)
+    // EXPOSURE
+    if (camera_parameters_.exposure_auto_)
     {
+      ROS_INFO_STREAM("Setting Auto Exposure Time");
       Arena::SetNodeValue<GenICam::gcstring>(pNodeMap, "ExposureAuto", "Continuous");
-      // todo update parameter on the server
-      ROS_INFO_STREAM("Settings Exposure to auto/Continuous");
     }
     else
     {
-      Arena::SetNodeValue<GenICam::gcstring>(pNodeMap, "ExposureAuto", "Off");
-      // todo update parameter on the server
-      ROS_INFO_STREAM("Settings Exposure to off/false");
+      ROS_INFO_STREAM("Setting Exposure Time to " << camera_parameters_.exposure_);
+      setExposure(camera_parameters_.exposure_);
     }
 
-    if (arena_camera_parameter_set_.exposure_auto_)
-     {
-      float reached_exposure;
-      if (setExposure(arena_camera_parameter_set_.exposure_, reached_exposure))
-      {
-        // Note: ont update the ros param because it might keep 
-        // decreasing or incresing overtime when rerun
-        ROS_INFO_STREAM("Setting exposure to " << arena_camera_parameter_set_.exposure_
-                                               << ", reached: " << reached_exposure);
-      }
-    }
-
-    //
     // GAIN
-    //
-    
-    // gain_auto_ will be already set to false if gain_given_ is true
-    // read params () solved the priority between them
-    if (arena_camera_parameter_set_.gain_auto_)
+    if (camera_parameters_.gain_auto_)
     {
+      ROS_INFO_STREAM("Setting Auto Gain");
       Arena::SetNodeValue<GenICam::gcstring>(pNodeMap, "GainAuto", "Continuous");
-      // todo update parameter on the server
-      ROS_INFO_STREAM("Settings Gain to auto/Continuous");
     }
     else
     {
-      Arena::SetNodeValue<GenICam::gcstring>(pNodeMap, "GainAuto", "Off");
-      // todo update parameter on the server
-      ROS_INFO_STREAM("Settings Gain to off/false");
+      ROS_INFO_STREAM("Setting Gain to: " << camera_parameters_.gain_);
+      setGain(camera_parameters_.gain_);
     }
 
-    if (arena_camera_parameter_set_.gain_auto_)
+    // BRIGHTNESS
+    if (camera_parameters_.gain_auto_ || camera_parameters_.exposure_auto_) 
     {
-      float reached_gain;
-      if (setGain(arena_camera_parameter_set_.gain_))
-      {
-        // Note: ont update the ros param because it might keep 
-        // decreasing or incresing overtime when rerun
-        ROS_INFO_STREAM("Setting gain to: " << arena_camera_parameter_set_.gain_);
-      }
+      ROS_INFO_STREAM("Setting Target Brightness to " << camera_parameters_.brightness_);
+      setBrightness(camera_parameters_.brightness_);
+    }
+    else {
+      ROS_INFO_STREAM("Ignoring Target Brightness since Exposure and Gain are provided");
     }
 
-    // ------------------------------------------------------------------------
+    // Configuring StreamPacketResendEnable significantly improves performance!
+    // TODO: Setup as parameters
+    ROS_INFO_STREAM("Setting Auto Negotiate Pack Size");
+	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamAutoNegotiatePacketSize", true);
 
-    //
+    ROS_INFO_STREAM("Setting Stream Packet Resend Enable");
+	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamPacketResendEnable", true);
+
+    ROS_INFO_STREAM("Setting Stream Buffer Handling Mode to NewestOnly");
+    Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetTLStreamNodeMap(), "StreamBufferHandlingMode", "NewestOnly");
+
+    pDevice_->StartStream();
+  }
+  catch (GenICam::GenericException& e)
+  {
+    ROS_ERROR_STREAM("Error while setting camera parameters occurred: \r\n" << e.GetDescription());
+    return false;
+  }
+  return true;
+}
+
+
+bool ArenaCameraNode::setupCameraInfo()
+{
+  auto  pNodeMap = pDevice_->GetNodeMap();
+  try
+  {
     //  Initial setting of the CameraInfo-msg, assuming no calibration given
     CameraInfo initial_cam_info;
     setupInitialCameraInfo(initial_cam_info);
     camera_info_manager_->setCameraInfo(initial_cam_info);
 
-    if (arena_camera_parameter_set_.cameraInfoURL().empty() ||
-        !camera_info_manager_->validateURL(arena_camera_parameter_set_.cameraInfoURL()))
-    {
-      ROS_INFO_STREAM("CameraInfoURL needed for rectification! ROS-Param: "
-                      << "'" << nh_.getNamespace() << "/camera_info_url' = '"
-                      << arena_camera_parameter_set_.cameraInfoURL() << "' is invalid!");
-      ROS_DEBUG_STREAM("CameraInfoURL should have following style: "
-                       << "'file:///full/path/to/local/file.yaml' or "
-                       << "'file://${ROS_HOME}/camera_info/${NAME}.yaml'");
-      ROS_WARN_STREAM("Will only provide distorted /image_raw images!");
+    if (camera_parameters_.cameraInfoURL().empty()) {
+      ROS_INFO_STREAM("CameraInfoURL not provided for rectification!");
     }
-    else
-    {
-      // override initial camera info if the url is valid
-      if (camera_info_manager_->loadCameraInfo(arena_camera_parameter_set_.cameraInfoURL()))
+    else if (!camera_info_manager_->validateURL(camera_parameters_.cameraInfoURL())) {
+      ROS_INFO_STREAM("CameraInfoURL '" << nh_.getNamespace() << "/camera_info_url' = '"
+                      << camera_parameters_.cameraInfoURL() << "' is invalid!");
+    }
+    else {
+      ROS_WARN_STREAM("Rectification not yet implemented. Can't be done on raw images");
+      if (camera_info_manager_->loadCameraInfo(camera_parameters_.cameraInfoURL()) && 0)
       {
         setupRectification();
         // set the correct tf frame_id
@@ -483,86 +405,29 @@ bool ArenaCameraNode::startGrabbing()
         cam_info->header.frame_id = img_raw_msg_.header.frame_id;
         camera_info_manager_->setCameraInfo(*cam_info);
       }
-      else
-      {
-        ROS_WARN_STREAM("Will only provide distorted /image_raw images!");
-      }
     }
 
-    // if (arena_camera_parameter_set_.image_encoding_given_)
-    // {
-    // 	float reached_image_encoding;
-    // 	if (setImageEncoding(arena_camera_parameter_set_.image_encoding_))
-    // 	{
-    // 		ROS_INFO_STREAM("Setting exposure to "
-    // 						<< arena_camera_parameter_set_.image_encoding_);
-    // 	}
-    // }
+    GenApi::CEnumerationPtr pPixelFormat = pDevice_->GetNodeMap()->GetNode("PixelFormat");
+    size_t bits_per_pixel = Arena::GetBitsPerPixel(pPixelFormat->GetCurrentEntry()->GetValue());
 
-    // Configuring StreamPacketResendEnable significantly improves performance
-    // enable stream auto negotiate packet size
-	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamAutoNegotiatePacketSize", true);
-	  // enable stream packet resend
-	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamPacketResendEnable", true);
-    // TODO: Confirm if necessary
-    Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetTLStreamNodeMap(), "StreamBufferHandlingMode", "NewestOnly");
+    img_raw_msg_.header.frame_id = camera_parameters_.cameraFrame();
+    img_raw_msg_.encoding = currentROSEncoding();
+    img_raw_msg_.height = Arena::GetNodeValue<int64_t>(pDevice_->GetNodeMap(), "Height");
+    img_raw_msg_.width = Arena::GetNodeValue<int64_t>(pDevice_->GetNodeMap(), "Width");
+    img_raw_msg_.step = img_raw_msg_.width * (bits_per_pixel / 8);
 
-    //
-    // Trigger Image
-    //
-
-    pDevice_->StartStream();
-    bool isTriggerArmed = false;
-
-    if (GenApi::IsWritable(pTriggerMode))
+    std::string camera_name = Arena::GetNodeValue<GenICam::gcstring>(pNodeMap, "DeviceUserID").c_str();
+    if (!camera_info_manager_->setCameraName(camera_name))
     {
-      do
-      {
-        isTriggerArmed = Arena::GetNodeValue<bool>(pNodeMap, "TriggerArmed");
-      } while (isTriggerArmed == false);
-      Arena::ExecuteNode(pNodeMap, "TriggerSoftware");
+      // valid name contains only alphanumeric signs and '_'
+      ROS_INFO_STREAM("[" << camera_name << "] not valid for camera_info_manager");
     }
-
-    pImage_ = pDevice_->GetImage(5000);
-    pData_ = pImage_->GetData();
-
-    img_raw_msg_.data.resize(img_raw_msg_.height * img_raw_msg_.step);
-    memcpy(&img_raw_msg_.data[0], pImage_->GetData(), img_raw_msg_.height * img_raw_msg_.step);
   }
   catch (GenICam::GenericException& e)
   {
-    ROS_ERROR_STREAM("Error while grabbing first image occurred: \r\n" << e.GetDescription());
+    ROS_ERROR_STREAM("Error while setting camera info: \r\n" << e.GetDescription());
     return false;
   }
-
-  // --------------------------------------------------------------------------
-
-  img_raw_msg_.header.frame_id = arena_camera_parameter_set_.cameraFrame();
-  // Encoding of pixels -- channel meaning, ordering, size
-  // taken from the list of strings in include/sensor_msgs/image_encodings.h
-  img_raw_msg_.encoding = currentROSEncoding();
-  img_raw_msg_.height = pImage_->GetHeight();
-  img_raw_msg_.width = pImage_->GetWidth();
-  // step = full row length in bytes, img_size = (step * rows), imagePixelDepth
-  // already contains the number of channels
-  img_raw_msg_.step = img_raw_msg_.width * (pImage_->GetBitsPerPixel() / 8);
-
-  if (!camera_info_manager_->setCameraName(
-          std::string(Arena::GetNodeValue<GenICam::gcstring>(pNodeMap, "DeviceUserID").c_str())))
-  {
-    // valid name contains only alphanumeric signs and '_'
-    ROS_WARN_STREAM(
-        "DeviceUserID [" << std::string(Arena::GetNodeValue<GenICam::gcstring>(pNodeMap, "DeviceUserID").c_str())
-            << "] name not valid for camera_info_manager");
-  }
-
-  ROS_INFO_STREAM("Startup settings: "
-                  << "encoding = '" << currentROSEncoding() << "', "
-                  << "exposure = " << currentExposure() << ", "
-                  << "gain = " << currentGain() << ", "
-                  << "shutter mode = " << arena_camera_parameter_set_.shutterModeString());
-
-  pDevice_->RequeueBuffer(pImage_);
   return true;
 }
 
@@ -612,15 +477,6 @@ uint32_t ArenaCameraNode::getNumSubscribersRaw() const
 
 void ArenaCameraNode::spin()
 {
-  if (camera_info_manager_->isCalibrated())
-  {
-    ROS_INFO_ONCE("Camera is calibrated");
-  }
-  else
-  {
-    ROS_INFO_ONCE("Camera not calibrated");
-  }
-
   if (pDevice_->IsConnected() == false)
   {
     ROS_ERROR("Arena camera has been removed, trying to reset");
@@ -672,7 +528,7 @@ void ArenaCameraNode::spin()
 
 bool ArenaCameraNode::grabImage()
 {
-  boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
+  // boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
   try
   {
     GenApi::CStringPtr pTriggerMode = pDevice_->GetNodeMap()->GetNode("TriggerMode");
@@ -680,10 +536,9 @@ bool ArenaCameraNode::grabImage()
     {
       bool isTriggerArmed = false;
 
-      do
-      {
+      while (!isTriggerArmed) {
         isTriggerArmed = Arena::GetNodeValue<bool>(pDevice_->GetNodeMap(), "TriggerArmed");
-      } while (isTriggerArmed == false);
+      }
       Arena::ExecuteNode(pDevice_->GetNodeMap(), "TriggerSoftware");
     }
     pImage_ = pDevice_->GetImage(5000);
@@ -697,8 +552,10 @@ bool ArenaCameraNode::grabImage()
     pDevice_->RequeueBuffer(pImage_);
     return true;
   }
+
   catch (GenICam::GenericException& e)
   {
+    ROS_ERROR_STREAM("Error while grabbing image: \r\n" << e.GetDescription());
     return false;
   }
 }
@@ -706,12 +563,12 @@ bool ArenaCameraNode::grabImage()
 
 const double& ArenaCameraNode::frameRate() const
 {
-  return arena_camera_parameter_set_.frameRate();
+  return camera_parameters_.frameRate();
 }
 
 const std::string& ArenaCameraNode::cameraFrame() const
 {
-  return arena_camera_parameter_set_.cameraFrame();
+  return camera_parameters_.cameraFrame();
 }
 
 uint32_t ArenaCameraNode::getNumSubscribersRect() const
@@ -727,7 +584,7 @@ uint32_t ArenaCameraNode::getNumSubscribers() const
 void ArenaCameraNode::setupInitialCameraInfo(sensor_msgs::CameraInfo& cam_info_msg)
 {
   std_msgs::Header header;
-  header.frame_id = arena_camera_parameter_set_.cameraFrame();
+  header.frame_id = camera_parameters_.cameraFrame();
   header.stamp = ros::Time::now();
 
   // http://www.ros.org/reps/rep-0104.html
@@ -822,145 +679,82 @@ bool ArenaCameraNode::setROI(const sensor_msgs::RegionOfInterest target_roi, sen
   return true;
 }
 
-
-bool ArenaCameraNode::setExposureValue(const float& target_exposure, float& reached_exposure)
+bool ArenaCameraNode::setExposure(const float& target_exposure)
 {
   try
   {
     Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "ExposureAuto", "Off");
 
     GenApi::CFloatPtr pExposureTime = pDevice_->GetNodeMap()->GetNode("ExposureTime");
-
-    float exposure_to_set = target_exposure;
-    if (exposure_to_set < pExposureTime->GetMin())
+    auto min = pExposureTime->GetMin();
+    auto max = pExposureTime->GetMax();
+    if (target_exposure < min)
     {
-      ROS_WARN_STREAM("Desired exposure (" << exposure_to_set << ") "
-                                           << "time unreachable! Setting to lower limit: " << pExposureTime->GetMin());
-      exposure_to_set = pExposureTime->GetMin();
+      ROS_WARN_STREAM("Desired ExposureTime (" << target_exposure << ") out of range. Setting to " << min);
+      pExposureTime->SetValue(min);
     }
-    else if (exposure_to_set > pExposureTime->GetMax())
+    else if (target_exposure > max)
     {
-      ROS_WARN_STREAM("Desired exposure (" << exposure_to_set << ") "
-                                           << "time unreachable! Setting to upper limit: " << pExposureTime->GetMax());
-      exposure_to_set = pExposureTime->GetMax();
+      ROS_WARN_STREAM("Desired ExposureTime (" << target_exposure << ") out of range. Setting to " << max);
+      pExposureTime->SetValue(max);
     }
-
-    pExposureTime->SetValue(exposure_to_set);
+    else {
+      pExposureTime->SetValue(target_exposure);
+    }
   }
   catch (const GenICam::GenericException& e)
   {
-    ROS_ERROR_STREAM("An exception while setting target exposure to " << target_exposure
-                                                                      << " occurred:" << e.GetDescription());
+    ROS_ERROR_STREAM("Exception occured while setting ExposureTime to " << target_exposure << e.GetDescription());
     return false;
   }
   return true;
 }
 
-bool ArenaCameraNode::setExposure(const float& target_exposure, float& reached_exposure)
-{
-  boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
-  // if ( !pylon_camera_->isReady() )
-  // {
-  //     ROS_WARN("Error in setExposure(): pylon_camera_ is not ready!");
-  //     return false;
-  // }
-
-  if (ArenaCameraNode::setExposureValue(target_exposure, reached_exposure))
-  {
-    // success if the delta is smaller then the exposure step
-    return true;
-  }
-  else  // retry till timeout
-  {
-    // wait for max 5s till the cam has updated the exposure
-    ros::Rate r(10.0);
-    ros::Time timeout(ros::Time::now() + ros::Duration(5.0));
-    while (ros::ok())
-    {
-      if (ArenaCameraNode::setExposureValue(target_exposure, reached_exposure))
-      {
-        // success if the delta is smaller then the exposure step
-        return true;
-      }
-
-      if (ros::Time::now() > timeout)
-      {
-        break;
-      }
-      r.sleep();
-    }
-    ROS_ERROR_STREAM("Error in setExposure(): Unable to set target"
-                     << " exposure before timeout");
-    return false;
-  }
-}
-
 bool ArenaCameraNode::setGain(const float& target_gain)
 {
-  boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
-  //TODO: Cleanup
-  float reached_gain;
   try
   {
     Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "GainAuto", "Off");
 
     GenApi::CFloatPtr pGain = pDevice_->GetNodeMap()->GetNode("Gain");
-    float truncated_gain = target_gain;
-    if (truncated_gain < pGain->GetMin())
+    double min = pGain->GetMin();
+    double max = pGain->GetMax();
+    if (target_gain < min)
     {
-      ROS_WARN_STREAM("Desired gain (" << target_gain << ") in "
-                                       << "percent out of range [0.0 - 1.0]! Setting to lower "
-                                       << "limit: 0.0");
-      truncated_gain = pGain->GetMin();
+      ROS_WARN_STREAM("Desired gain (" << target_gain << ") out of range. Setting to " << min);
+      pGain->SetValue(min);
     }
-    else if (truncated_gain > pGain->GetMax())
+    else if (target_gain > max)
     {
-      ROS_WARN_STREAM("Desired gain (" << target_gain << ") in "
-                                       << "percent out of range [0.0 - 1.0]! Setting to upper "
-                                       << "limit: 1.0");
-      truncated_gain = pGain->GetMax();
+      ROS_WARN_STREAM("Desired gain (" << target_gain << ") out of range. Setting to " << max);
+      pGain->SetValue(max);
     }
-
-    float gain_to_set = pGain->GetMin() + truncated_gain * (pGain->GetMax() - pGain->GetMin());
-    pGain->SetValue(gain_to_set);
+    else
+    {
+      pGain->SetValue(target_gain);
+    }
   }
   catch (const GenICam::GenericException& e)
   {
-    ROS_ERROR_STREAM("An exception while setting target gain to " << target_gain
-                                                                  << " occurred: " << e.GetDescription());
+    ROS_ERROR_STREAM("Exception occured while setting Gain to " << target_gain << e.GetDescription());
     return false;
   }
   return true;
 }
 
-
-void disableAllRunningAutoBrightessFunctions()
-{
-  GenApi::CStringPtr pExposureAuto = pNodeMap_->GetNode("ExposureAuto");
-  GenApi::CStringPtr pGainAuto = pNodeMap_->GetNode("GainAuto");
-  if (!pExposureAuto || !GenApi::IsWritable(pExposureAuto) || !pGainAuto || !GenApi::IsWritable(pGainAuto))
-  {
-    ROS_WARN_STREAM("Unable to disable auto brightness");
-    return;
-  }
-
-  else
-  {
-    Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "ExposureAuto", "Off");
-    Arena::SetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "GainAuto", "Off");
-  }
-}
-
 bool ArenaCameraNode::setBrightness(const int& target_brightness)
 {
-  boost::lock_guard<boost::recursive_mutex> lock(grab_mutex_);
-  // TODO: clenaup
-  Arena::SetNodeValue<int64_t>(pDevice_->GetNodeMap(), "TargetBrightness", target_brightness);
-  ROS_INFO_STREAM("WOLF setBrightness: " << target_brightness);
-  // double exposureTime = Arena::GetNodeValue<double>(pDevice_->GetNodeMap(), "ExposureTime");
+  try
+  {
+    Arena::SetNodeValue<int64_t>(pDevice_->GetNodeMap(), "TargetBrightness", target_brightness);
+  }
+  catch (const GenICam::GenericException& e)
+  {
+    ROS_ERROR_STREAM("Exception occured while setting Target Brightness to " << target_brightness << e.GetDescription());
+    return false;
+  }
   return true;
 }
-
 
 bool ArenaCameraNode::isSleeping()
 {
