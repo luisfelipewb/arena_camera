@@ -68,12 +68,6 @@ public:
   const std::string& deviceUserID() const;
 
   /**
-   * Setter for the device_user_id_  to the class and as well
-   * the ros-parameter server
-   */
-  void adaptDeviceUserId(const ros::NodeHandle& nh, const std::string& device_user_id);
-
-  /**
    * Getter for the string describing the shutter mode
    */
   std::string shutterModeString() const;

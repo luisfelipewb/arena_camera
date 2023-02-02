@@ -50,9 +50,7 @@ using sensor_msgs::CameraInfoPtr;
 ArenaCameraNode::ArenaCameraNode()
   : nh_("~")
   , arena_camera_parameter_set_()
-  // Arena
   , arena_camera_(nullptr)
-  // others
   , it_(new image_transport::ImageTransport(nh_))
   , img_raw_pub_(it_->advertiseCamera("image_raw", 1))
   , img_rect_pub_(nullptr)
@@ -503,16 +501,6 @@ bool ArenaCameraNode::startGrabbing()
     // }
 
     // Configuring StreamPacketResendEnable significantly improves performance
-    // TODO: Cleanup
-    GenICam::gcstring triggerSelectorInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerSelector");
-    GenICam::gcstring triggerModeInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerMode");
-    GenICam::gcstring triggerSourceInitial = Arena::GetNodeValue<GenICam::gcstring>(pDevice_->GetNodeMap(), "TriggerSource");
-
-    ROS_DEBUG_STREAM( "Initial stream configuration"
-                    << "\ttriggerSelectorInitial: " << triggerSelectorInitial
-                    << "\ttriggerModeInitial: " << triggerModeInitial
-                    << "\ttriggerSourceInitial: " << triggerSourceInitial << std::endl);
-
     // enable stream auto negotiate packet size
 	  Arena::SetNodeValue<bool>(pDevice_->GetTLStreamNodeMap(), "StreamAutoNegotiatePacketSize", true);
 	  // enable stream packet resend
