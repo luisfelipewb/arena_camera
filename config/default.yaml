@@ -35,7 +35,7 @@ image_encoding: "bayer_rggb8"
 #  The desired publisher frame rate if listening to the topics.
 #  This parameter can only be set once at startup
 #  Calling the GrabImages-Action can result in a higher framerate
-frame_rate: 0.2
+frame_rate: 2.0
 
 #  Mode of camera's shutter.
 #  The supported modes are "rolling", "global" and "global_reset"
@@ -72,7 +72,7 @@ shutter_mode: "global"
 #  try to reach the desired brightness by only varying the exposure time. If
 #  gain AND exposure are given, it is not possible to reach the brightness,
 #  because both are assumed to be fix.
-# brightness: 100
+brightness: 80
 
 #  Only relevant, if 'brightness' is set:
 #  The brightness_continuous flag controls the auto brightness function.
